@@ -1,3 +1,5 @@
+import os
+
 from utils.constants import UNIVARIATE_ARCHIVE_NAMES as ARCHIVE_NAMES
 
 from utils.utils import read_all_datasets
@@ -10,6 +12,9 @@ import utils
 import numpy as np
 import sys
 import sklearn
+
+from keras.backend.tensorflow_backend import set_session
+import tensorflow as tf
 
 
 def prepare_data():
@@ -58,7 +63,7 @@ def create_classifier(classifier_name, input_shape, nb_classes, output_directory
     if classifier_name == 'inception':
         from classifiers import inception
         return inception.Classifier_INCEPTION(output_directory, input_shape, nb_classes, verbose,
-                                              build=build)
+                                              build=build, nb_epochs=1500)
 
 
 def get_xp_val(xp):
@@ -87,10 +92,23 @@ xps = ['use_bottleneck', 'use_residual', 'nb_filters', 'depth',
 if sys.argv[1] == 'InceptionTime':
     # run nb_iter_ iterations of Inception on the whole TSC archive
     classifier_name = 'inception'
+    seed = int(sys.argv[2])
+    start_dataset = int(sys.argv[3])
+    end_dataset = int(sys.argv[4])
+    gpu_id = sys.argv[5]
     archive_name = ARCHIVE_NAMES[0]
+    datasets_to_run = utils.constants.dataset_names_for_archive[archive_name][start_dataset:end_dataset]
     nb_iter_ = 5
 
-    datasets_dict = read_all_datasets(root_dir, archive_name)
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_id
+
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+
+    sess = tf.Session(config=config)
+    set_session(sess)
+
+    datasets_dict = read_all_datasets(root_dir, archive_name, seed=seed)
 
     for iter in range(nb_iter_):
         print('\t\titer', iter)
@@ -101,7 +119,7 @@ if sys.argv[1] == 'InceptionTime':
 
         tmp_output_directory = root_dir + '/results/' + classifier_name + '/' + archive_name + trr + '/'
 
-        for dataset_name in utils.constants.dataset_names_for_archive[archive_name]:
+        for dataset_name in datasets_to_run:
             print('\t\t\tdataset_name: ', dataset_name)
 
             x_train, y_train, x_test, y_test, y_true, nb_classes, y_true_train, enc = prepare_data()
@@ -169,7 +187,7 @@ elif sys.argv[1] == 'InceptionTime_xp':
                 for dataset_name in utils.constants.dataset_names_for_archive[archive_name]:
 
                     output_directory = root_dir + '/results/' + classifier_name + '/' + '/' + xp + '/' + '/' + str(
-                        xp_val) + '/' + archive_name + trr + '/' + dataset_name + '/'
+                            xp_val) + '/' + archive_name + trr + '/' + dataset_name + '/'
 
                     print('\t\t\tdataset_name', dataset_name)
                     x_train, y_train, x_test, y_test, y_true, nb_classes, y_true_train, enc = prepare_data()

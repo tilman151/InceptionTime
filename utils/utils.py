@@ -66,7 +66,7 @@ def read_dataset(root_dir, archive_name, dataset_name):
     return datasets_dict
 
 
-def read_all_datasets(root_dir, archive_name):
+def read_all_datasets(root_dir, archive_name, seed=42):
     datasets_dict = {}
 
     dataset_names_to_sort = []
@@ -79,7 +79,7 @@ def read_all_datasets(root_dir, archive_name):
             x_test, y_test = readucr(file_name + '_TEST.tsv', delimiter='\t')
 
             n_classes = np.unique(y_train).shape[0]
-            x_train, y_train = resample(x_train, y_train, n_samples=n_classes, stratify=y_train, random_state=42)
+            x_train, y_train = resample(x_train, y_train, n_samples=n_classes, stratify=y_train, random_state=seed)
             datasets_dict[dataset_name] = (x_train.copy(), y_train.copy(), x_test.copy(),
                                            y_test.copy())
 
