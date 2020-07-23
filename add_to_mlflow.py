@@ -3,6 +3,8 @@ import os
 import mlflow
 import pandas as pd
 
+from utils import utils
+
 
 def add(mlflow_uri):
     results = _gather_results()
@@ -29,7 +31,8 @@ def _get_results_from_dir(result_dir):
         if 'df_metrics.csv' in file_names:
             metrics = pd.read_csv(os.path.join(dir_path, 'df_metrics.csv'))
             accuracy = metrics['accuracy'][0]
-            classifier, replication, dataset = dir_path.replace(result_dir + os.sep, '').split(os.sep)
+            *classifier, replication, dataset = dir_path.replace(result_dir + os.sep, '').split(os.sep)
+            classifier = '-'.join(classifier)
             result_record = {'result_dir': directory,
                              'classifier': classifier,
                              'replication': replication,
@@ -43,12 +46,23 @@ def _get_results_from_dir(result_dir):
 def _write_to_mlflow(results, mlflow_uri):
     mlflow.set_tracking_uri(mlflow_uri)
     mlflow.set_experiment('ucr_data')
+    num_refs_per_dataset = _get_num_dataset_refs()
+
     for classifier in results.index.levels[0]:
         with mlflow.start_run():
             mlflow.log_param('classifier', classifier)
             for dataset, row in results.loc[classifier].iterrows():
-                mlflow.log_metrics({f'mean_accuracy_{dataset}_0': row[('accuracy', 'mean')],
-                                    f'std_accuracy_{dataset}_0': row[('accuracy', 'std')]})
+                num_refs = num_refs_per_dataset[dataset]
+                mlflow.log_metrics({f'mean_accuracy_{dataset}_{num_refs}': row[('accuracy', 'mean')],
+                                    f'std_accuracy_{dataset}_{num_refs}': row[('accuracy', 'std')]})
+
+
+def _get_num_dataset_refs():
+    script_path = os.path.dirname(__file__)
+    datasets = utils.read_all_datasets(script_path, 'TSC')
+    dataset_classes = {dataset_name: y_train.shape[0] for dataset_name, (_, y_train, _, _) in datasets.items()}
+
+    return dataset_classes
 
 
 if __name__ == '__main__':
